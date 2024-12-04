@@ -1,0 +1,164 @@
+<div id="container" style="width: 100%; height: 100%; position: relative; background: white;"></div>
+<input type="file" id="file-input" accept=".stl,.obj" style="display: none;" />
+<button id="minimal-button">Upload file</button>
+
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+
+    body {
+        margin: 0;
+        overflow: hidden;
+        position: relative;
+    }
+
+    #container {
+        width: 100vw;
+        height: 100vh;
+        background: white;
+    }
+
+    #minimal-button {
+        font-family: 'Poppins', sans-serif;
+        font-size: 16px;
+        font-weight: 600;
+        color: #fff;
+        background: #007BFF;
+        border: none;
+        border-radius: 25px;
+        padding: 10px 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 10;
+    }
+
+    #minimal-button:hover {
+        background: #0056b3;
+        box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+        transform: translateY(-2px);
+    }
+
+    #minimal-button:active {
+        background: #004085;
+        box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2);
+        transform: translateY(0);
+    }
+</style>
+
+<script>
+    import * as THREE from 'three';
+    import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
+    import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
+    import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+
+    // Configuración básica de Three.js
+    const container = document.getElementById('container');
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    container.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    // Fondo blanco
+    renderer.setClearColor(0xffffff);
+
+    // Luz
+    const light = new THREE.DirectionalLight(0xffffff, 1);
+    light.position.set(1, 1, 1).normalize();
+    scene.add(light);
+
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+    scene.add(ambientLight);
+
+    // Configuración inicial de la cámara
+    camera.position.z = 5;
+
+    // Animación
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    // Subida de archivos STL y OBJ
+    const fileInput = document.getElementById('file-input');
+    const button = document.getElementById('minimal-button');
+    const stlLoader = new STLLoader();
+    const objLoader = new OBJLoader();
+    let currentMesh = null;
+
+    button.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const fileContent = e.target.result;
+
+                // Elimina el modelo actual si ya existe
+                if (currentMesh) {
+                    scene.remove(currentMesh);
+                }
+
+                // Identificar el tipo de archivo por su extensión
+                const fileExtension = file.name.split('.').pop().toLowerCase();
+                if (fileExtension === 'stl') {
+                    try {
+                        const geometry = stlLoader.parse(fileContent);
+                        const material = new THREE.MeshPhongMaterial({ color: 0x606060 });
+                        currentMesh = new THREE.Mesh(geometry, material);
+                        currentMesh.rotation.x = -Math.PI / 2;
+                        scene.add(currentMesh);
+                        centerCamera(currentMesh);
+                    } catch (error) {
+                        console.error("Error al cargar el archivo STL:", error);
+                    }
+                } else if (fileExtension === 'obj') {
+                    try {
+                        const objModel = objLoader.parse(fileContent);
+                        currentMesh = objModel;
+                        scene.add(currentMesh);
+                        centerCamera(currentMesh);
+                    } catch (error) {
+                        console.error("Error al cargar el archivo OBJ:", error);
+                    }
+                } else {
+                    console.error("Formato de archivo no soportado:", fileExtension);
+                }
+            };
+
+            if (file.name.endsWith('.stl')) {
+                reader.readAsArrayBuffer(file);
+            } else if (file.name.endsWith('.obj')) {
+                reader.readAsText(file);
+            }
+        }
+    });
+
+    // Centrar cámara en el modelo cargado
+    function centerCamera(object) {
+        const box = new THREE.Box3().setFromObject(object);
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+        controls.target.copy(center);
+        camera.position.set(center.x, center.y, size.length() * 2);
+        controls.update();
+    }
+
+    // Manejar cambio de tamaño de ventana
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+</script>
