@@ -10,7 +10,11 @@
         overflow: hidden;
         position: relative;
     }
-
+    .centered {
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
     #container {
         width: 100vw;
         height: 100vh;
@@ -93,7 +97,11 @@
     const stlLoader = new STLLoader();
     const objLoader = new OBJLoader();
     let currentMesh = null;
+    button.classList.add('centered');
 
+    // Cuando se genere el canvas, mueve el botón
+    container.appendChild(renderer.domElement); // Agregar canvas al DOM
+    button.classList.remove('centered'); // Quitar la clase centrada
     button.addEventListener('click', () => {
         fileInput.click();
     });
